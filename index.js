@@ -1,5 +1,6 @@
 import { registerRootComponent } from 'expo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import "./App.js";
 
 import App from './App';
 

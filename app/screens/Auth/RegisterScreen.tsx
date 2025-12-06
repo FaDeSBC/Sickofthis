@@ -19,6 +19,7 @@ export default function RegisterScreen({ navigation }: any) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState<string | null>(null);
   const [items, setItems] = useState([
+    {label: 'Student', value: 'Student'},
     {label: 'Civilian', value: 'Civilian'},
     {label: 'Blue-collar', value: 'Blue-collar'},
     {label: 'White-collar', value: 'White-collar'},

@@ -74,7 +74,7 @@ export default function CreatePostScreen({ navigation }: any) {
       const { latitude: lat, longitude: lng } = location.coords;
 
       if (!isWithinOlongapo(lat, lng)) {
-        Alert.alert('Location Error', 'You must be in Olongapo City to create a post');
+        Alert.alert('Location Error', 'You must be in Olongapo City to use current location');
         return;
       }
 
@@ -89,6 +89,16 @@ export default function CreatePostScreen({ navigation }: any) {
     } catch (error) {
       Alert.alert('Error', 'Failed to get current location');
     }
+  };
+
+  const openMapSelector = () => {
+    navigation.navigate('MapCreatePost', {
+      onLocationSelect: (location: { latitude: number; longitude: number; locationName: string }) => {
+        setLatitude(location.latitude);
+        setLongitude(location.longitude);
+        setLocationName(location.locationName);
+      },
+    });
   };
 
   const addTag = () => {
@@ -114,7 +124,7 @@ export default function CreatePostScreen({ navigation }: any) {
     }
 
     if (!locationName.trim()) {
-      Alert.alert('Error', 'Please enter a location');
+      Alert.alert('Error', 'Please select a location on the map');
       return;
     }
 
@@ -191,20 +201,29 @@ export default function CreatePostScreen({ navigation }: any) {
 
         <TextInput
           style={styles.input}
-          placeholder="Title"
+          placeholder="Type title here"
           value={title}
           onChangeText={setTitle}
         />
 
-        <View style={styles.mapPreview}>
-          <Text style={styles.mapText}>📍 Map Preview (Olongapo City)</Text>
-          <TouchableOpacity onPress={getCurrentLocation}>
-            <Text style={styles.useLocationText}>Use Current Location</Text>
+        <View style={styles.mapPreviewContainer}>
+          <Text style={styles.label}>Location</Text>
+          <TouchableOpacity style={styles.mapPreview} onPress={openMapSelector}>
+            <Text style={styles.mapIcon}>📍</Text>
+            <View style={styles.mapTextContainer}>
+              <Text style={styles.mapTitle}>
+                {locationName || 'Select location it was last seen within Olongapo'}
+              </Text>
+              <Text style={styles.mapSubtitle}>Tap to open map</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.currentLocationButton} onPress={getCurrentLocation}>
+            <Text style={styles.currentLocationText}>Use Current Location</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.typeToggle}>
-          <Text style={styles.label}>Case Selection</Text>
+          <Text style={styles.label}>Choose which case:</Text>
           <View style={styles.toggleButtons}>
             <TouchableOpacity
               style={[styles.typeButton, type === 'lost' && styles.typeButtonActive]}
@@ -226,7 +245,7 @@ export default function CreatePostScreen({ navigation }: any) {
         </View>
 
         <View style={styles.itemTypeToggle}>
-          <Text style={styles.label}>Select Type</Text>
+          <Text style={styles.label}>Category Type:</Text>
           <View style={styles.toggleButtons}>
             <TouchableOpacity
               style={[styles.typeButton, itemType === 'item' && styles.typeButtonActive]}
@@ -248,21 +267,21 @@ export default function CreatePostScreen({ navigation }: any) {
         </View>
 
         <View style={styles.dropdownContainer}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>Category:</Text>
           <DropDownPicker
             open={categoryOpen}
             value={category}
             items={categories}
             setOpen={setCategoryOpen}
             setValue={setCategory}
-            placeholder="Select Category"
+            placeholder="Select Categories"
             style={styles.dropdown}
           />
         </View>
 
         <View style={styles.dateTimeContainer}>
           <View style={styles.dateTimeItem}>
-            <Text style={styles.label}>Date</Text>
+            <Text style={styles.label}>Date:</Text>
             <TouchableOpacity
               style={styles.dateTimeButton}
               onPress={() => setShowDatePicker(true)}
@@ -271,7 +290,7 @@ export default function CreatePostScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
           <View style={styles.dateTimeItem}>
-            <Text style={styles.label}>Time</Text>
+            <Text style={styles.label}>Time:</Text>
             <TouchableOpacity
               style={styles.dateTimeButton}
               onPress={() => setShowTimePicker(true)}
@@ -305,17 +324,20 @@ export default function CreatePostScreen({ navigation }: any) {
           />
         )}
 
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Details"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={4}
-        />
+        <View style={styles.detailsContainer}>
+          <Text style={styles.label}>Details</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Input description here"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+          />
+        </View>
 
         <View style={styles.claimingMethodContainer}>
-          <Text style={styles.label}>Claiming Method</Text>
+          <Text style={styles.label}>Claiming Method/s</Text>
           <View style={styles.toggleButtons}>
             <TouchableOpacity
               style={[styles.typeButton, claimingMethod === 'meetup' && styles.typeButtonActive]}
@@ -343,7 +365,7 @@ export default function CreatePostScreen({ navigation }: any) {
               style={styles.tagInput}
               value={tagInput}
               onChangeText={setTagInput}
-              placeholder="Add tag..."
+              placeholder="Type any tag"
               onSubmitEditing={addTag}
             />
             <TouchableOpacity onPress={addTag} style={styles.addTagButton}>
@@ -361,13 +383,6 @@ export default function CreatePostScreen({ navigation }: any) {
             ))}
           </View>
         </View>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Location in Olongapo City"
-          value={locationName}
-          onChangeText={setLocationName}
-        />
 
         <PrimaryButton
           title="POST"
@@ -466,20 +481,45 @@ const styles = StyleSheet.create({
     fontSize: 40,
     color: Colors.primary,
   },
-  mapPreview: {
-    backgroundColor: Colors.lightGray,
-    padding: 20,
-    borderRadius: 10,
+  mapPreviewContainer: {
     marginBottom: 15,
-    alignItems: 'center',
   },
-  mapText: {
-    fontSize: 16,
+  mapPreview: {
+    backgroundColor: Colors.white,
+    padding: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 10,
   },
-  useLocationText: {
+  mapIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  mapTextContainer: {
+    flex: 1,
+  },
+  mapTitle: {
+    fontSize: 14,
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
+  mapSubtitle: {
+    fontSize: 12,
     color: Colors.primary,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  currentLocationButton: {
+    backgroundColor: Colors.primaryLight,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  currentLocationText: {
+    color: Colors.white,
+    fontWeight: '600',
   },
   typeToggle: {
     marginBottom: 15,
@@ -531,6 +571,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     backgroundColor: Colors.white,
+  },
+  detailsContainer: {
+    marginBottom: 15,
   },
   claimingMethodContainer: {
     marginBottom: 15,

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { getMessages, sendMessage, markMessagesAsRead, subscribeToMessages, Message } from '../../services/messageService';
+import { uploadImage } from '../../services/authService';
 import { Colors } from '../../constants/Colors';
 import { formatTime } from '../../utils/formatDate';
 
@@ -57,15 +59,68 @@ export default function ChatScreen({ route, navigation }: any) {
     }
   };
 
+  const handleAttachFile = async () => {
+    Alert.alert(
+      'Attach File',
+      'Choose an option',
+      [
+        {
+          text: 'Photo',
+          onPress: async () => {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            
+            if (!permissionResult.granted) {
+              Alert.alert('Permission Required', 'Permission to access gallery is required!');
+              return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+              allowsEditing: true,
+            });
+
+            if (!result.canceled && user) {
+              const imageUri = result.assets[0].uri;
+              setLoading(true);
+              
+              // Upload image
+              const imageUrl = await uploadImage(imageUri, 'chat', user.id);
+              
+              if (imageUrl) {
+                // Send image URL as message
+                await sendMessage(conversationId, user.id, `[IMAGE]${imageUrl}`);
+              } else {
+                Alert.alert('Error', 'Failed to upload image');
+              }
+              
+              setLoading(false);
+            }
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isMyMessage = item.sender_id === user?.id;
+    const isImage = item.content.startsWith('[IMAGE]');
+    const imageUrl = isImage ? item.content.replace('[IMAGE]', '') : null;
 
     return (
       <View style={[styles.messageContainer, isMyMessage ? styles.myMessage : styles.otherMessage]}>
         <View style={[styles.messageBubble, isMyMessage ? styles.myBubble : styles.otherBubble]}>
-          <Text style={[styles.messageText, isMyMessage ? styles.myMessageText : styles.otherMessageText]}>
-            {item.content}
-          </Text>
+          {isImage && imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.messageImage} />
+          ) : (
+            <Text style={[styles.messageText, isMyMessage ? styles.myMessageText : styles.otherMessageText]}>
+              {item.content}
+            </Text>
+          )}
           <Text style={[styles.messageTime, isMyMessage ? styles.myMessageTime : styles.otherMessageTime]}>
             {formatTime(item.created_at)}
           </Text>
@@ -132,6 +187,9 @@ export default function ChatScreen({ route, navigation }: any) {
         />
 
         <View style={styles.inputContainer}>
+          <TouchableOpacity style={styles.attachButton} onPress={handleAttachFile}>
+            <Text style={styles.attachIcon}>📎</Text>
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             value={inputText}
@@ -220,6 +278,12 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: Colors.text.primary,
   },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 5,
+  },
   messageTime: {
     fontSize: 11,
     marginTop: 5,
@@ -238,6 +302,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: Colors.lightGray,
+  },
+  attachButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 5,
+  },
+  attachIcon: {
+    fontSize: 20,
   },
   input: {
     flex: 1,

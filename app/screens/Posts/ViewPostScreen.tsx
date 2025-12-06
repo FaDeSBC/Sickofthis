@@ -5,14 +5,21 @@ import { useAuth } from '../../context/AuthContext';
 import { getPostById, deletePost, Post } from '../../services/postService';
 import { createClaim } from '../../services/claimService';
 import { createConversation } from '../../services/messageService';
+import { supabase } from '../../config/supabase';
 import { Colors } from '../../constants/Colors';
 import { formatDate, formatTime } from '../../utils/formatDate';
 import PrimaryButton from '../../components/ui/PrimaryButton';
+
+interface UserProfile {
+  full_name: string;
+  label: string;
+}
 
 export default function ViewPostScreen({ route, navigation }: any) {
   const { postId } = route.params;
   const { user } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
+  const [postOwner, setPostOwner] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -24,8 +31,36 @@ export default function ViewPostScreen({ route, navigation }: any) {
     const { data, error } = await getPostById(postId);
     if (!error && data) {
       setPost(data);
+      // Fetch post owner's profile
+      await loadPostOwner(data.user_id);
     }
     setLoading(false);
+  };
+
+  const loadPostOwner = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('app_3f92f_profiles')
+        .select('full_name, label')
+        .eq('id', userId)
+        .single();
+
+      if (!error && data) {
+        setPostOwner(data);
+      }
+    } catch (error) {
+      console.error('Error loading post owner:', error);
+    }
+  };
+
+  const handleViewMap = () => {
+    if (!post) return;
+    navigation.navigate('MapViewPost', {
+      latitude: post.latitude,
+      longitude: post.longitude,
+      locationName: post.location_name,
+      title: post.title,
+    });
   };
 
   const handleClaim = async () => {
@@ -118,9 +153,19 @@ export default function ViewPostScreen({ route, navigation }: any) {
   }
 
   const isOwner = user?.id === post.user_id;
+  const ownerName = postOwner?.full_name || 'Unknown User';
+  const actionLabel = post.type === 'found' ? 'Founded by' : 'Lost by';
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>View Post</Text>
+        <View style={{ width: 50 }} />
+      </View>
+
       <ScrollView>
         <View style={styles.imageContainer}>
           {post.image_urls && post.image_urls.length > 0 ? (
@@ -135,7 +180,7 @@ export default function ViewPostScreen({ route, navigation }: any) {
         </View>
 
         <View style={styles.content}>
-          <View style={styles.header}>
+          <View style={styles.headerRow}>
             <View style={[styles.badge, post.type === 'lost' ? styles.lostBadge : styles.foundBadge]}>
               <Text style={styles.badgeText}>{post.type === 'lost' ? 'LOST' : 'FOUND'}</Text>
             </View>
@@ -145,18 +190,34 @@ export default function ViewPostScreen({ route, navigation }: any) {
           <Text style={styles.title}>{post.title}</Text>
           <Text style={styles.description}>{post.description}</Text>
 
+          <TouchableOpacity style={styles.mapLocationCard} onPress={handleViewMap}>
+            <View style={styles.mapLocationHeader}>
+              <Text style={styles.mapLocationLabel}>Last {post.type === 'found' ? 'found' : 'seen'} in</Text>
+              <Text style={styles.viewMapText}>View Map →</Text>
+            </View>
+            <Text style={styles.mapLocationText}>{post.location_name}</Text>
+          </TouchableOpacity>
+
           <View style={styles.detailsContainer}>
-            <View style={styles.detailRow}>
-              <Image source={require('../../assets/loclogo.png')} style={styles.icon} />
-              <Text style={styles.detailText}>{post.location_name}</Text>
+            <View style={styles.detailsGrid}>
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>{actionLabel}</Text>
+                <Text style={styles.detailValue}>{ownerName}</Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Category</Text>
+                <Text style={styles.detailValue}>{post.category}</Text>
+              </View>
             </View>
-            <View style={styles.detailRow}>
-              <Image source={require('../../assets/datelogo.png')} style={styles.icon} />
-              <Text style={styles.detailText}>{formatDate(post.date_lost_found)}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Image source={require('../../assets/timelogo.png')} style={styles.icon} />
-              <Text style={styles.detailText}>{formatTime(post.date_lost_found)}</Text>
+            <View style={styles.detailsGrid}>
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Date {post.type === 'found' ? 'found' : 'lost'}</Text>
+                <Text style={styles.detailValue}>{formatDate(post.date_lost_found)}</Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Time {post.type === 'found' ? 'found' : 'lost'}</Text>
+                <Text style={styles.detailValue}>{formatTime(post.date_lost_found)}</Text>
+              </View>
             </View>
           </View>
 
@@ -172,16 +233,16 @@ export default function ViewPostScreen({ route, navigation }: any) {
           ) : (
             <View style={styles.actions}>
               <PrimaryButton
-                title="Message Owner"
-                onPress={handleMessage}
+                title="Confirm claim"
+                onPress={handleClaim}
                 loading={actionLoading}
                 style={styles.actionButton}
               />
               <PrimaryButton
-                title="Claim Item"
-                onPress={handleClaim}
+                title="Contact (message)"
+                onPress={handleMessage}
                 loading={actionLoading}
-                style={styles.actionButton}
+                style={[styles.actionButton, styles.secondaryButton]}
               />
             </View>
           )}
@@ -195,6 +256,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.lightGray,
+  },
+  backButton: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
   },
   loadingContainer: {
     flex: 1,
@@ -222,7 +302,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -260,31 +340,70 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 24,
   },
+  mapLocationCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  mapLocationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  mapLocationLabel: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+    fontWeight: '600',
+  },
+  viewMapText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: 'bold',
+  },
+  mapLocationText: {
+    fontSize: 16,
+    color: Colors.text.primary,
+    fontWeight: '600',
+  },
   detailsContainer: {
     backgroundColor: Colors.white,
     borderRadius: 10,
     padding: 15,
     marginBottom: 20,
   },
-  detailRow: {
+  detailsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 5,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  icon: {
-    width: 20,
-    height: 20,
-    marginRight: 10,
+  detailItem: {
+    flex: 1,
   },
-  detailText: {
+  detailLabel: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  detailValue: {
     fontSize: 14,
     color: Colors.text.primary,
+    fontWeight: '500',
   },
   actions: {
     gap: 10,
   },
   actionButton: {
     marginVertical: 5,
+  },
+  secondaryButton: {
+    backgroundColor: Colors.white,
+    borderWidth: 2,
+    borderColor: Colors.primary,
   },
   ownerActions: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, FlatList, RefreshControl, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SearchBar from '../../components/ui/SearchBar';
 import LostFoundToggle from '../../components/ui/LostFoundToggle';
@@ -51,6 +51,18 @@ export default function HomeScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
+  const handleShowLostItems = () => {
+    setIsLost(true);
+    setIsSearching(false);
+    setSearchText('');
+  };
+
+  const handleShowFoundItems = () => {
+    setIsLost(false);
+    setIsSearching(false);
+    setSearchText('');
+  };
+
   const displayData = isSearching && searchText.length > 0 ? filteredPosts : posts;
   const recentData = posts.slice(0, 5);
 
@@ -63,11 +75,32 @@ export default function HomeScreen({ navigation }: any) {
           setIsSearching={setIsSearching}
           searchText={searchText}
           setSearchText={setSearchText}
+          navigation={navigation}
         />
 
-        {!isSearching && <LostFoundToggle isLost={isLost} setIsLost={setIsLost} />}
+        {!isSearching && (
+          <>
+            <LostFoundToggle isLost={isLost} setIsLost={setIsLost} />
+            
+            {/* Quick Action Buttons */}
+            <View style={styles.quickActionsContainer}>
+              <TouchableOpacity 
+                style={[styles.quickActionButton, styles.lostButton]} 
+                onPress={handleShowLostItems}
+              >
+                <Text style={styles.quickActionText}>Lost Items</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.quickActionButton, styles.foundButton]} 
+                onPress={handleShowFoundItems}
+              >
+                <Text style={styles.quickActionText}>Found Items</Text>
+              </TouchableOpacity>
+            </View>
 
-        {!isSearching && <RecentItems horizontalData={recentData} navigation={navigation} />}
+            <RecentItems horizontalData={recentData} navigation={navigation} />
+          </>
+        )}
 
         <ItemList 
           data={displayData} 
@@ -85,5 +118,29 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  quickActionsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  quickActionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  lostButton: {
+    backgroundColor: Colors.error,
+  },
+  foundButton: {
+    backgroundColor: Colors.success,
+  },
+  quickActionText: {
+    color: Colors.white,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
