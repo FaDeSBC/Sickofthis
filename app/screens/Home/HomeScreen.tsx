@@ -82,7 +82,6 @@ export default function HomeScreen({ navigation }: any) {
           <>
             <LostFoundToggle isLost={isLost} setIsLost={setIsLost} />
             
-            {/* Quick Action Buttons */}
             <View style={styles.quickActionsContainer}>
               <TouchableOpacity 
                 style={[styles.quickActionButton, styles.lostButton]} 

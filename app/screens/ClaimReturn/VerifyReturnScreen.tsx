@@ -8,7 +8,7 @@ export default function VerifyReturnScreen({ route, navigation }: any) {
   const { claimId } = route.params;
   const [returnCode, setReturnCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
-  const [timer, setTimer] = useState(300); // 5 minutes
+  const [timer, setTimer] = useState(300); 
 
   useEffect(() => {
     generateCode();

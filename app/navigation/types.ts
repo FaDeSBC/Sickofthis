@@ -20,7 +20,9 @@ export type MainStackParamList = {
   NotificationSettings: undefined;
   Settings: undefined;
   MapCreatePost: { onLocationSelect: (location: any) => void };
-  MapViewPost: { latitude: number; longitude: number; title: string };
+  MapViewPost: { latitude: number; longitude: number; title: string; locationName?: string };
+  AdvancedSearch: undefined;
+  SearchResults: { results: any[]; filters: any; dateRange: any };
 };
 
 export type BottomTabParamList = {

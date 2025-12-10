@@ -46,12 +46,11 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
      <View style={styles.container}>
       <SearchBar
-        isLost={isLost}
-        isSearching={isSearching}
-        setIsSearching={setIsSearching}
-        searchText={searchText}
-        setSearchText={setSearchText}
-      />
+          isLost={isLost}
+          isSearching={isSearching}
+          setIsSearching={setIsSearching}
+          searchText={searchText}
+          setSearchText={setSearchText} navigation={undefined}      />
 
       {!isSearching && <LostFoundToggle isLost={isLost} setIsLost={setIsLost} />}
 

@@ -1,25 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 import { useAuth } from '../../context/AuthContext';
 import { getPostById, deletePost, Post } from '../../services/postService';
 import { createClaim } from '../../services/claimService';
 import { createConversation } from '../../services/messageService';
-import { supabase } from '../../config/supabase';
 import { Colors } from '../../constants/Colors';
 import { formatDate, formatTime } from '../../utils/formatDate';
 import PrimaryButton from '../../components/ui/PrimaryButton';
 
-interface UserProfile {
-  full_name: string;
-  label: string;
-}
+const { width } = Dimensions.get('window');
 
 export default function ViewPostScreen({ route, navigation }: any) {
   const { postId } = route.params;
-  const { user } = useAuth();
+  const { user, profile } = useAuth() as any;
   const [post, setPost] = useState<Post | null>(null);
-  const [postOwner, setPostOwner] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -31,48 +27,20 @@ export default function ViewPostScreen({ route, navigation }: any) {
     const { data, error } = await getPostById(postId);
     if (!error && data) {
       setPost(data);
-      // Fetch post owner's profile
-      await loadPostOwner(data.user_id);
     }
     setLoading(false);
-  };
-
-  const loadPostOwner = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('app_3f92f_profiles')
-        .select('full_name, label')
-        .eq('id', userId)
-        .single();
-
-      if (!error && data) {
-        setPostOwner(data);
-      }
-    } catch (error) {
-      console.error('Error loading post owner:', error);
-    }
-  };
-
-  const handleViewMap = () => {
-    if (!post) return;
-    navigation.navigate('MapViewPost', {
-      latitude: post.latitude,
-      longitude: post.longitude,
-      locationName: post.location_name,
-      title: post.title,
-    });
   };
 
   const handleClaim = async () => {
     if (!user || !post) return;
 
     Alert.alert(
-      'Claim Item',
+      'Confirm claim',
       'Are you sure you want to claim this item?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Claim',
+          text: 'Confirm',
           onPress: async () => {
             setActionLoading(true);
             const { error } = await createClaim(post.id, user.id, post.user_id);
@@ -106,13 +74,9 @@ export default function ViewPostScreen({ route, navigation }: any) {
     }
   };
 
-  const handleEdit = () => {
-    navigation.navigate('EditPost', { postId: post?.id });
-  };
-
   const handleDelete = () => {
     Alert.alert(
-      'Delete Post',
+      'Confirmation',
       'Are you sure you want to delete this post?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -136,6 +100,10 @@ export default function ViewPostScreen({ route, navigation }: any) {
     );
   };
 
+  const handleReport = () => {
+    Alert.alert('Report', 'Report functionality coming soon');
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -153,8 +121,36 @@ export default function ViewPostScreen({ route, navigation }: any) {
   }
 
   const isOwner = user?.id === post.user_id;
-  const ownerName = postOwner?.full_name || 'Unknown User';
-  const actionLabel = post.type === 'found' ? 'Founded by' : 'Lost by';
+
+  const mapHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+          }
+          iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+          }
+        </style>
+      </head>
+      <body>
+        <iframe 
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d123424.00274851343!2d${post.longitude}!3d${post.latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3396711b9c32216b%3A0xa080c3d36f2963a7!2sOlongapo%20City%2C%20Zambales!5e0!3m2!1sen!2sph!4v1765387492700!5m2!1sen!2sph" 
+          allowfullscreen="" 
+          loading="lazy" 
+          referrerpolicy="no-referrer-when-downgrade">
+        </iframe>
+      </body>
+    </html>
+  `;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,8 +158,20 @@ export default function ViewPostScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>View Post</Text>
-        <View style={{ width: 50 }} />
+        <Text style={styles.headerTitle}>{post.title}</Text>
+        <TouchableOpacity onPress={() => {
+          Alert.alert(
+            'Options',
+            '',
+            [
+              { text: 'Delete', onPress: handleDelete, style: 'destructive' },
+              { text: 'Report', onPress: handleReport },
+              { text: 'Cancel', style: 'cancel' },
+            ]
+          );
+        }}>
+          <Text style={styles.moreButton}>⋮</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView>
@@ -182,55 +190,121 @@ export default function ViewPostScreen({ route, navigation }: any) {
         <View style={styles.content}>
           <View style={styles.headerRow}>
             <View style={[styles.badge, post.type === 'lost' ? styles.lostBadge : styles.foundBadge]}>
-              <Text style={styles.badgeText}>{post.type === 'lost' ? 'LOST' : 'FOUND'}</Text>
+              <Text style={styles.badgeText}>{post.type === 'lost' ? 'Lost' : 'Found'}</Text>
             </View>
-            <Text style={styles.category}>{post.category}</Text>
           </View>
 
           <Text style={styles.title}>{post.title}</Text>
-          <Text style={styles.description}>{post.description}</Text>
 
-          <TouchableOpacity style={styles.mapLocationCard} onPress={handleViewMap}>
-            <View style={styles.mapLocationHeader}>
-              <Text style={styles.mapLocationLabel}>Last {post.type === 'found' ? 'found' : 'seen'} in</Text>
-              <Text style={styles.viewMapText}>View Map →</Text>
+          {/* Poster Info */}
+          {profile && (
+            <View style={styles.posterInfo}>
+              <Text style={styles.posterName}>{profile.full_name || 'User'}</Text>
+              <Text style={styles.posterLabel}>{profile.label || 'User'}</Text>
+              <Text style={styles.posterDate}>{formatDate(post.created_at)}</Text>
             </View>
-            <Text style={styles.mapLocationText}>{post.location_name}</Text>
-          </TouchableOpacity>
+          )}
 
-          <View style={styles.detailsContainer}>
-            <View style={styles.detailsGrid}>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>{actionLabel}</Text>
-                <Text style={styles.detailValue}>{ownerName}</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Category</Text>
-                <Text style={styles.detailValue}>{post.category}</Text>
+          {/* Claimer Info Section - Only show to owner */}
+          {isOwner && (
+            <View style={styles.claimerSection}>
+              <Text style={styles.sectionTitle}>Claimer Information</Text>
+              <View style={styles.claimerCard}>
+                <Text style={styles.claimerName}>Shie Faly Ezail Abadia</Text>
+                <Text style={styles.claimerDetail}>Gender : Female</Text>
+                <Text style={styles.claimerDetail}>Age : 22</Text>
+                <Text style={styles.claimerDetail}>Student</Text>
+                <Text style={styles.claimerDetail}>Contact no : 09398384135</Text>
               </View>
             </View>
-            <View style={styles.detailsGrid}>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Date {post.type === 'found' ? 'found' : 'lost'}</Text>
-                <Text style={styles.detailValue}>{formatDate(post.date_lost_found)}</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Time {post.type === 'found' ? 'found' : 'lost'}</Text>
-                <Text style={styles.detailValue}>{formatTime(post.date_lost_found)}</Text>
-              </View>
+          )}
+
+          {/* Map Section */}
+          <View style={styles.mapSection}>
+            <Text style={styles.sectionTitle}>Last found in</Text>
+            <Text style={styles.locationText}>{post.location_name}</Text>
+            <View style={styles.mapContainer}>
+              <WebView
+                source={{ html: mapHtml }}
+                style={styles.map}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                scrollEnabled={false}
+              />
             </View>
           </View>
 
-          {isOwner ? (
-            <View style={styles.ownerActions}>
-              <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-                <Text style={styles.editButtonText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
+          {/* Found By Section */}
+          <View style={styles.detailsSection}>
+            <Text style={styles.sectionTitle}>Found by</Text>
+            <View style={styles.founderCard}>
+              <Text style={styles.founderName}>Roy Manglicmot</Text>
+              <Text style={styles.founderDetail}>Gender : Male</Text>
+              <Text style={styles.founderDetail}>Age : 21</Text>
+              <Text style={styles.founderDetail}>Student</Text>
+              <Text style={styles.founderDetail}>Contact no : 09398384135</Text>
             </View>
-          ) : (
+          </View>
+
+          {/* Category and Details */}
+          <View style={styles.infoGrid}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Category</Text>
+              <Text style={styles.infoValue}>Item: {post.category}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Date found</Text>
+              <Text style={styles.infoValue}>{formatDate(post.date_lost_found)}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Time found</Text>
+              <Text style={styles.infoValue}>{formatTime(post.date_lost_found)}</Text>
+            </View>
+          </View>
+
+          {/* Details */}
+          <View style={styles.descriptionSection}>
+            <Text style={styles.sectionTitle}>Details</Text>
+            <Text style={styles.description}>{post.description}</Text>
+          </View>
+
+          {/* Claiming Methods */}
+          <View style={styles.claimingSection}>
+            <Text style={styles.sectionTitle}>Claiming Method/s</Text>
+            <View style={styles.methodButtons}>
+              <View style={styles.methodButton}>
+                <Text style={styles.methodText}>Meet-up</Text>
+              </View>
+              <View style={styles.methodButton}>
+                <Text style={styles.methodText}>Hand over to station</Text>
+              </View>
+            </View>
+            <Text style={styles.barangayText}>Barangay</Text>
+          </View>
+
+          {/* Tags */}
+          {post.tags && post.tags.length > 0 && (
+            <View style={styles.tagsSection}>
+              <Text style={styles.sectionTitle}>Tags</Text>
+              <View style={styles.tagsContainer}>
+                {post.tags.map((tag: string | number | bigint | boolean | 
+                React.ReactElement<unknown, string | 
+                React.JSXElementConstructor<any>> | 
+                Iterable<React.ReactNode> | 
+                React.ReactPortal | Promise<string | number | bigint | 
+                boolean | React.ReactPortal | React.ReactElement<unknown, string | 
+                React.JSXElementConstructor<any>> | Iterable<React.ReactNode>>, 
+                index: React.Key) => (
+                  <View key={index} style={styles.tag}>
+                    <Text style={styles.tagText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          {!isOwner && (
             <View style={styles.actions}>
               <PrimaryButton
                 title="Confirm claim"
@@ -239,11 +313,14 @@ export default function ViewPostScreen({ route, navigation }: any) {
                 style={styles.actionButton}
               />
               <PrimaryButton
-                title="Contact (message)"
+                title="Contact"
                 onPress={handleMessage}
                 loading={actionLoading}
                 style={[styles.actionButton, styles.secondaryButton]}
               />
+              <TouchableOpacity style={styles.verifyButton}>
+                <Text style={styles.verifyButtonText}>Verify return</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -272,8 +349,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+    color: Colors.text.primary,
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 10,
+  },
+  moreButton: {
+    fontSize: 24,
     color: Colors.text.primary,
   },
   loadingContainer: {
@@ -295,7 +379,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.lightGray,
   },
   image: {
-    width: 400,
+    width: width,
     height: 300,
     resizeMode: 'cover',
   },
@@ -306,7 +390,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
   },
   badge: {
     paddingHorizontal: 15,
@@ -322,11 +406,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: Colors.white,
     fontWeight: 'bold',
-  },
-  category: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    textTransform: 'capitalize',
+    fontSize: 12,
   },
   title: {
     fontSize: 24,
@@ -334,65 +414,160 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: Colors.text.primary,
   },
-  description: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    marginBottom: 20,
-    lineHeight: 24,
-  },
-  mapLocationCard: {
+  posterInfo: {
     backgroundColor: Colors.white,
+    padding: 15,
     borderRadius: 10,
-    padding: 16,
     marginBottom: 20,
+  },
+  posterName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
+  posterLabel: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 4,
+  },
+  posterDate: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+  },
+  claimerSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
+    marginBottom: 10,
+  },
+  claimerCard: {
+    backgroundColor: Colors.white,
+    padding: 15,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.primary,
   },
-  mapLocationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  claimerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
     marginBottom: 8,
   },
-  mapLocationLabel: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    fontWeight: '600',
-  },
-  viewMapText: {
+  claimerDetail: {
     fontSize: 14,
-    color: Colors.primary,
-    fontWeight: 'bold',
+    color: Colors.text.secondary,
+    marginBottom: 4,
   },
-  mapLocationText: {
+  mapSection: {
+    marginBottom: 20,
+  },
+  locationText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 10,
+  },
+  mapContainer: {
+    height: 250,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: Colors.lightGray,
+  },
+  map: {
+    flex: 1,
+  },
+  detailsSection: {
+    marginBottom: 20,
+  },
+  founderCard: {
+    backgroundColor: Colors.white,
+    padding: 15,
+    borderRadius: 10,
+  },
+  founderName: {
     fontSize: 16,
+    fontWeight: 'bold',
     color: Colors.text.primary,
-    fontWeight: '600',
+    marginBottom: 8,
   },
-  detailsContainer: {
+  founderDetail: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 4,
+  },
+  infoGrid: {
     backgroundColor: Colors.white,
     borderRadius: 10,
     padding: 15,
     marginBottom: 20,
   },
-  detailsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  infoItem: {
     marginBottom: 12,
   },
-  detailItem: {
-    flex: 1,
-  },
-  detailLabel: {
+  infoLabel: {
     fontSize: 12,
     color: Colors.text.secondary,
     marginBottom: 4,
-    fontWeight: '600',
   },
-  detailValue: {
+  infoValue: {
     fontSize: 14,
     color: Colors.text.primary,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  descriptionSection: {
+    marginBottom: 20,
+  },
+  description: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    lineHeight: 22,
+  },
+  claimingSection: {
+    marginBottom: 20,
+  },
+  methodButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  methodButton: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    alignItems: 'center',
+  },
+  methodText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  barangayText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  tagsSection: {
+    marginBottom: 20,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tag: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  tagText: {
+    color: Colors.white,
+    fontSize: 12,
   },
   actions: {
     gap: 10,
@@ -405,30 +580,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.primary,
   },
-  ownerActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  editButton: {
-    flex: 1,
-    backgroundColor: Colors.primary,
+  verifyButton: {
+    backgroundColor: Colors.white,
     padding: 15,
     borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.success,
     alignItems: 'center',
   },
-  editButtonText: {
-    color: Colors.white,
+  verifyButtonText: {
+    color: Colors.success,
     fontWeight: 'bold',
-  },
-  deleteButton: {
-    flex: 1,
-    backgroundColor: Colors.error,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: Colors.white,
-    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

@@ -37,13 +37,11 @@ export default function NotificationScreen({ navigation }: any) {
 
   const handleNotificationPress = async (notification: Notification) => {
     if (!notification.is_read) {
-      // mark read locally; persist to backend where available
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
       );
     }
 
-    // Navigate based on notification type
     if (notification.type === 'message') {
       navigation.navigate('Messages');
     } else if (notification.type === 'claim' || notification.type === 'post_update') {

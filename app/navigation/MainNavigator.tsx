@@ -12,6 +12,8 @@ import NotificationSettingsScreen from '../screens/Profile/NotificationScreen';
 import SettingsScreen from '../screens/Profile/SettingsScreen';
 import MapCreatePost from '../screens/Posts/Maps/MapCreatePost';
 import MapViewPost from '../screens/Posts/Maps/MapViewPost';
+import AdvancedSearchScreen from '../screens/Search/AdvancedSearchScreen';
+import SearchResultsScreen from '../screens/Search/SearchResultsScreen';
 import { MainStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -31,6 +33,8 @@ export default function MainNavigator() {
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="MapCreatePost" component={MapCreatePost} />
       <Stack.Screen name="MapViewPost" component={MapViewPost} />
+      <Stack.Screen name="AdvancedSearch" component={AdvancedSearchScreen} />
+      <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
     </Stack.Navigator>
   );
 }

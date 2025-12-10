@@ -74,7 +74,6 @@ export default function AdvancedSearchScreen({ navigation }: any) {
       return;
     }
 
-    // Navigate to search results with filters
     navigation.navigate('Home', {
       searchFilters: {
         type,

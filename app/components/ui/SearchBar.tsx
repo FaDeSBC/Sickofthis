@@ -8,9 +8,10 @@ interface SearchBarProps {
   setIsSearching: (value: boolean) => void;
   searchText: string;
   setSearchText: (value: string) => void;
+  navigation: any;
 }
 
-export default function SearchBar({ isLost, isSearching, setIsSearching, searchText, setSearchText }: SearchBarProps) {
+export default function SearchBar({ isLost, isSearching, setIsSearching, searchText, setSearchText, navigation }: SearchBarProps) {
   return (
     <View style={styles.searchContainer}>
       {isSearching ? (
@@ -30,12 +31,20 @@ export default function SearchBar({ isLost, isSearching, setIsSearching, searchT
           </TouchableOpacity>
         </View>
       ) : (
-        <TouchableOpacity
-          style={styles.searchButton}
-          onPress={() => setIsSearching(true)}
-        >
-          <Text>Search</Text>
-        </TouchableOpacity>
+        <View style={styles.searchButtonContainer}>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => setIsSearching(true)}
+          >
+            <Text style={styles.searchButtonText}>🔍 Search</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.advancedSearchButton}
+            onPress={() => navigation.navigate('AdvancedSearch')}
+          >
+            <Text style={styles.advancedSearchText}>Advanced</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -48,15 +57,34 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 20 
   },
+  searchButtonContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
   searchButton: {
-    padding: 10,
+    flex: 1,
+    padding: 12,
     backgroundColor: Colors.white,
     alignItems: 'center',
     borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.primary,
-    width: 310,
-    alignSelf: 'center',
+  },
+  searchButtonText: {
+    color: Colors.text.primary,
+    fontSize: 16,
+  },
+  advancedSearchButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: Colors.primary,
+    borderRadius: 20,
+  },
+  advancedSearchText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   searchBar: {
     flexDirection: 'row',

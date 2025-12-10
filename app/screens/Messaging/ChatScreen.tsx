@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { getMessages, sendMessage, markMessagesAsRead, subscribeToMessages, Message } from '../../services/messageService';
-import { uploadImage } from '../../services/authService';
 import { Colors } from '../../constants/Colors';
 import { formatTime } from '../../utils/formatDate';
 
 export default function ChatScreen({ route, navigation }: any) {
   const { conversationId, otherUserId } = route.params;
-  const { user } = useAuth();
+  const { user, profile } = useAuth() as any;
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,68 +57,15 @@ export default function ChatScreen({ route, navigation }: any) {
     }
   };
 
-  const handleAttachFile = async () => {
-    Alert.alert(
-      'Attach File',
-      'Choose an option',
-      [
-        {
-          text: 'Photo',
-          onPress: async () => {
-            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            
-            if (!permissionResult.granted) {
-              Alert.alert('Permission Required', 'Permission to access gallery is required!');
-              return;
-            }
-
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              quality: 0.8,
-              allowsEditing: true,
-            });
-
-            if (!result.canceled && user) {
-              const imageUri = result.assets[0].uri;
-              setLoading(true);
-              
-              // Upload image
-              const imageUrl = await uploadImage(imageUri, 'chat', user.id);
-              
-              if (imageUrl) {
-                // Send image URL as message
-                await sendMessage(conversationId, user.id, `[IMAGE]${imageUrl}`);
-              } else {
-                Alert.alert('Error', 'Failed to upload image');
-              }
-              
-              setLoading(false);
-            }
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
   const renderMessage = ({ item }: { item: Message }) => {
     const isMyMessage = item.sender_id === user?.id;
-    const isImage = item.content.startsWith('[IMAGE]');
-    const imageUrl = isImage ? item.content.replace('[IMAGE]', '') : null;
 
     return (
       <View style={[styles.messageContainer, isMyMessage ? styles.myMessage : styles.otherMessage]}>
         <View style={[styles.messageBubble, isMyMessage ? styles.myBubble : styles.otherBubble]}>
-          {isImage && imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.messageImage} />
-          ) : (
-            <Text style={[styles.messageText, isMyMessage ? styles.myMessageText : styles.otherMessageText]}>
-              {item.content}
-            </Text>
-          )}
+          <Text style={[styles.messageText, isMyMessage ? styles.myMessageText : styles.otherMessageText]}>
+            {item.content}
+          </Text>
           <Text style={[styles.messageTime, isMyMessage ? styles.myMessageTime : styles.otherMessageTime]}>
             {formatTime(item.created_at)}
           </Text>
@@ -156,10 +101,13 @@ export default function ChatScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chat</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Sling bag in bus</Text>
+          <Text style={styles.headerSubtitle}>Roy Manglicmot</Text>
+        </View>
         <TouchableOpacity onPress={() => {
           Alert.alert(
-            'More Options',
+            'Options',
             '',
             [
               { text: 'Delete', onPress: handleDeleteConversation, style: 'destructive' },
@@ -170,6 +118,15 @@ export default function ChatScreen({ route, navigation }: any) {
         }}>
           <Text style={styles.moreButton}>⋮</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Claimer Info Banner */}
+      <View style={styles.claimerBanner}>
+        <Text style={styles.claimerName}>Shie Faly Ezail Abadia</Text>
+        <Text style={styles.claimerInfo}>Gender : Female</Text>
+        <Text style={styles.claimerInfo}>Age : 22</Text>
+        <Text style={styles.claimerInfo}>Student</Text>
+        <Text style={styles.claimerInfo}>Contact no : 09398384135</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -187,19 +144,13 @@ export default function ChatScreen({ route, navigation }: any) {
         />
 
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.attachButton} onPress={handleAttachFile}>
-            <Text style={styles.attachIcon}>📎</Text>
-          </TouchableOpacity>
           <TextInput
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Type a message..."
+            placeholder="Type the message"
             multiline
           />
-          <TouchableOpacity style={styles.micButton}>
-            <Text style={styles.micIcon}>🎤</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
             onPress={handleSend}
@@ -231,14 +182,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.primary,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: Colors.text.primary,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: Colors.text.secondary,
   },
   moreButton: {
     fontSize: 24,
     color: Colors.text.primary,
+  },
+  claimerBanner: {
+    backgroundColor: Colors.primaryLight,
+    padding: 15,
+  },
+  claimerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.white,
+    marginBottom: 4,
+  },
+  claimerInfo: {
+    fontSize: 12,
+    color: Colors.white,
+    marginBottom: 2,
   },
   content: {
     flex: 1,
@@ -278,12 +252,6 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: Colors.text.primary,
   },
-  messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 5,
-  },
   messageTime: {
     fontSize: 11,
     marginTop: 5,
@@ -303,16 +271,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.lightGray,
   },
-  attachButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 5,
-  },
-  attachIcon: {
-    fontSize: 20,
-  },
   input: {
     flex: 1,
     borderWidth: 1,
@@ -322,16 +280,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 10,
     maxHeight: 100,
-  },
-  micButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 5,
-  },
-  micIcon: {
-    fontSize: 20,
   },
   sendButton: {
     width: 40,

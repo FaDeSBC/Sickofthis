@@ -4,7 +4,6 @@ import { Post } from '../../services/postService';
 import { Colors } from '../../constants/Colors';
 import { formatDate, formatTime } from '../../utils/formatDate';
 
-// Support both full `Post` objects and lightweight items used by HomeScreen
 type LightItem = {
   id: string;
   name?: string;
@@ -24,16 +23,13 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onPress }: PostCardProps) {
-  // Prefer full Post images, fall back to lightweight item's `image` or a default
   const imageUrl = (post as Post).image_urls && (post as Post).image_urls.length > 0
     ? (post as Post).image_urls[0]
     : (post as LightItem).image || require('../../assets/lostitem.png');
 
-  // Title and location fallbacks for lightweight items
   const title = (post as Post).title ?? (post as LightItem).name ?? 'Untitled';
   const locationName = (post as Post).location_name ?? (post as LightItem).location ?? 'Unknown location';
 
-  // Build a date string that works with formatDate/formatTime: prefer full Post date, else combine lightweight date and time
   const rawDate = (post as Post).date_lost_found ??
     ((post as LightItem).date ? `${(post as LightItem).date} ${(post as LightItem).time ?? ''}`.trim() : undefined);
 

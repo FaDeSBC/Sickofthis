@@ -65,7 +65,6 @@ export default function RegisterScreen({ navigation }: any) {
   };
 
   const handleRegister = async () => {
-    // Validation
     if (!validateRequired(fullName)) {
       Alert.alert('Error', 'Please enter your full name');
       return;
@@ -110,7 +109,6 @@ export default function RegisterScreen({ navigation }: any) {
     setLoading(true);
 
     try {
-      // First create the auth user
       const { error: signUpError } = await signUp(email, password, {
         full_name: fullName,
         label: value,
